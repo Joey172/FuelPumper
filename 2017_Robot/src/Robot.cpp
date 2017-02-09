@@ -11,13 +11,14 @@
 #include "TankDrive.h"
 #include "Pickup.h"
 #include "BoilerVision.h"
+#include "Vision.h"
 using frc::SmartDashboard;
 using namespace std;
 using namespace frc;
 class Robot: public frc::IterativeRobot {
 	TankDrive m_tank;
-
-	grip::BoilerVision Vision;
+	Vision m_vision;
+	grip::BoilerVision m_boilerVision;
 	CameraServer *cameraServer = nullptr;
 	cs::CvSource m_outputStream;
 	cs::UsbCamera camera;
@@ -44,6 +45,14 @@ public:
 		if(m_leftStick.GetRawButton(PICKUP)) {
 			m_pickup.Intake(true);
 		} else m_pickup.stop();
+
+
+		if(m_leftStick.GetRawButton(CAMERA1)) {
+			m_vision.SwitchCamera(0);
+		}
+		else if(m_leftStick.GetRawButton(CAMERA2)) {
+			m_vision.SwitchCamera(1);
+		}
 	}
 
 	void AutonomousInit() override {
@@ -58,9 +67,9 @@ public:
 		cv::Mat frame;
 
 		cameraServer->GetVideo().GrabFrame(frame);
-		Vision.process(frame);
+		m_boilerVision.process(frame);
 		std::vector<std::vector<cv::Point>> foundContours;
-		foundContours = *Vision.getfindContoursOutput();
+		foundContours = *m_boilerVision.getfindContoursOutput();
 
 		vector<cv::Moments> mu(foundContours.size());
 

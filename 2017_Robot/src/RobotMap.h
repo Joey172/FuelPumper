@@ -25,6 +25,8 @@ enum RStickMap {
 	REVERSE_DRIVE = 1,
 	SET_SPEED_MODE = 10,
 	SET_VBUS_MODE = 11,
+	CAMERA1 = 10,
+	CAMERA2 = 11,
 };
 
 enum DIOMap {
