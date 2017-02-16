@@ -12,33 +12,37 @@
 #include "Pickup.h"
 #include "BoilerVision.h"
 #include "GearManipulator.h"
+#include "Vision.h"
 #include "Shooter.h"
+#include "Autonomous.h"
+#include "Climber.h"
 using frc::SmartDashboard;
 using namespace std;
 using namespace frc;
 class Robot: public frc::IterativeRobot {
+	Vision m_vision;
 	grip::BoilerVision m_boilerVision;
 	frc::Solenoid m_gearShift;
 	CANTalon m_leftMotor1;
 	CANTalon m_leftMotor2;
 	CANTalon m_rightMotor1;
 	CANTalon m_rightMotor2;
-
+	CANTalon m_climbMotor;
 	TankDrive m_tank;
-
-    Shooter m_shooter;
+	Autonomous *m_autonomous = nullptr;
+	Climber m_climber;
+	Shooter *m_shooter = nullptr;
 	CANTalon m_shootWheel1;
 	CANTalon m_shootWheel2;
 	CANTalon m_indexMotor;
 	DigitalOutput m_aimLight;
-	grip::BoilerVision Vision;
+	//grip::BoilerVision Vision;
 	CameraServer *cameraServer = nullptr;
 	cs::CvSource m_outputStream;
 	cs::UsbCamera camera;
 	GearManipulator m_gearManipulator;
-
 	Pickup m_pickup;
-	Joystick m_leftStick, m_rightStick;
+	Joystick m_leftStick, m_rightStick, m_manStick;
 
 	frc::Talon m_intakeMotor;
 	// Hopper Motor pushs into Hopper
@@ -47,19 +51,22 @@ class Robot: public frc::IterativeRobot {
 	frc::Servo m_leftGearServo;
 	frc::Servo m_rightGearServo;
 
+	float m_shooterSpeed = 0;
 
 public:
 	Robot()
 		:
-		m_leftStick(LEFTSTICK) //todo:mjj use config constant instead of literal number
-		,m_rightStick(RIGHTSTICK) //todo:mjj use config constant instead of literal number
-		,m_gearShift(GEAR_SHIFT)
-		,m_leftMotor1(LEFT_DRIVE1)
-		,m_leftMotor2(LEFT_DRIVE2)
-		,m_rightMotor1(RIGHT_DRIVE1)
-		,m_rightMotor2(RIGHT_DRIVE2)
-		, m_intakeMotor(PICKUP_INTAKE)
-		, m_hopperMotor(PICKUP_HOPPER)
+		m_leftStick(STICK_LEFT) //todo:mjj use config constant instead of literal number
+		,m_rightStick(STICK_RIGHT)//todo:mjj use config constant instead of literal number
+		,m_manStick(STICK_MAN)
+		,m_gearShift(SOLENOID_GEAR_SHIFT)
+		,m_leftMotor1(MOTOR_LEFT_DRIVE1)
+		,m_leftMotor2(MOTOR_LEFT_DRIVE2)
+		,m_rightMotor1(MOTOR_RIGHT_DRIVE1)
+		,m_rightMotor2(MOTOR_RIGHT_DRIVE2)
+		,m_intakeMotor(MOTOR_PICKUP_INTAKE)
+		,m_climbMotor(MOTOR_CLIMB)
+		,m_hopperMotor(MOTOR_PICKUP_HOPPER)
 		,m_tank(
 			m_leftStick
 			, m_rightStick
@@ -69,104 +76,92 @@ public:
 			, m_rightMotor1
 			, m_rightMotor2
 		)
-		, m_aimLight(AIM_LIGHT)
+		, m_aimLight(LIGHT_AIM)
 		, m_shootWheel1(0)
 		, m_shootWheel2(1)
 		, m_indexMotor(2)
 		, m_pickup(
 			m_leftStick
-			, PICKUP
+			, BUTTON_L_PICKUP
 			, m_intakeMotor
 			, m_hopperMotor
 		)
-		, m_shooter(
-			m_rightStick
-			, m_shootWheel1 //todo:mjj change values to constant.
-			, m_shootWheel2
-			, m_indexMotor
-			, m_leftStick
-			, m_aimLight
+		, m_climber(
+			m_manStick
+			, m_climbMotor
 		)
-		, m_leftGearServo(LEFT_GEAR_SERVO)
-		, m_rightGearServo(RIGHT_GEAR_SERVO)
+		, m_leftGearServo(MOTOR_LEFT_GEAR_SERVO)
+		, m_rightGearServo(MOTOR_RIGHT_GEAR_SERVO)
 		, m_gearManipulator(
 			m_rightStick
-			, GEAR_RELEASE
+			, BUTTON_L_GEAR_RELEASE
 			, m_leftGearServo
 			, m_rightGearServo
 		)
+		, m_vision(
 
+		)
 
 	{
 
 	}
 
-	void RobotInit() {
+	void RobotInit() override {
 		SmartDashboard::PutNumber("Exposure", 1);
 		if(!Preferences::GetInstance()->ContainsKey("Exposure")) {
 			Preferences::GetInstance()->PutFloat("Exposure", 1);
 		}
+		cameraServer = CameraServer::GetInstance();
+		m_autonomous = new Autonomous(cameraServer, m_outputStream, camera);
+
+		m_shooterSpeed = frc::Preferences::GetInstance()->GetFloat("ShooterSpeed",0);
+		m_shooter = new Shooter(
+			m_shootWheel1
+			, m_shootWheel2
+			, m_indexMotor
+			, m_aimLight
+			, BUTTON_M_SHOOT
+			, m_manStick
+			, BUTTON_M_REVERSEINDEX
+			, m_manStick
+			, BUTTON_L_AIM_LIGHT
+			, m_leftStick
+			, m_shooterSpeed
+		);
+
+
+		m_shooter->Init();
 	}
 
-	void TeleopInit() {
-
+	void TeleopInit() override {
+		m_gearManipulator.TeleopInit();
+		m_pickup.TeleopInit();
+		m_shooter->TeleopInit();
+		m_tank.TeleopInit();
+		m_climber.TeleopInit();
+		m_vision.TeleopInit();
 	}
 
-	void TeleopPeriodic() {
+	void TeleopPeriodic() override {
 		//m_gearManipulator.Release(m_leftStick.GetRawButton(LStickMap::GEAR_RELEASE));
 		m_gearManipulator.TeleopPeriodic();
 		m_tank.TeleopPeriodic();
 		m_pickup.TeleopPeriodic();
-		m_shooter.TeleopPeriodic();
-	}
+		m_shooter->TeleopPeriodic();
+		m_climber.TeleopPeriodic();
+		m_vision.TeleopPeriodic();
+}
 
 	void AutonomousInit() override {
-		cameraServer = CameraServer::GetInstance();
-		camera = cameraServer->StartAutomaticCapture(0);
-		m_outputStream = CameraServer::GetInstance()->PutVideo("thresh", 640, 480);
-		camera.SetResolution(640, 480);
-		camera.SetExposureManual(1);
+	    m_autonomous->AutonomousInit();
 	}
 
-	void AutonomousPeriodic() {
-		cv::Mat frame;
+	void AutonomousPeriodic() override {
+		m_autonomous->AutonomousPeriodic();
 
-		cameraServer->GetVideo().GrabFrame(frame);
-		m_boilerVision.process(frame);
-		std::vector<std::vector<cv::Point>> foundContours;
-		foundContours = *m_boilerVision.getfindContoursOutput();
-
-		vector<cv::Moments> mu(foundContours.size());
-
-		vector<cv::Point2f> mc(foundContours.size());
-
-		for( unsigned i = 0; i < foundContours.size(); i++ ) {
-			mu[i] = moments( foundContours[i], false );
-		}
-
-		for(unsigned i = 0; i < foundContours.size(); i++) {
-			mc[i] = cv::Point2f(mu[i].m10 / mu[i].m00, mu[i].m01 / mu[i].m00);
-		}
-
-		for(unsigned i = 0; i < foundContours.size(); i++) {
-			printf("Found Contours!:  x: %f, y: %f\n", mc[i].x, mc[i].y);
-		}
-		for(unsigned i = 0; i < foundContours.size(); i++) {
-			cv::Rect boundingRect = cv::boundingRect(foundContours[i]);
-			printf("X: %i, Y: %i, W: %i, H: %i\n",boundingRect.x,boundingRect.y,boundingRect.width,boundingRect.height);
-		}
-
-
-//		cv::Mat contourImg;
-//		cv::Mat mymat;
-//		for(auto contour : foundContours) {
-//			cv::drawContours(contourImg, contour, {255, 0, 0});
-//			cv::Mat mymat = *Vision.gethsvThresholdOutput();
-//		}
-//		m_outputStream.PutFrame(mymat);
 	}
 
-	void TestPeriodic() {
+	void TestPeriodic() override {
 
 	}
 };

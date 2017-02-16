@@ -34,22 +34,27 @@ TankDrive::TankDrive(
 	m_rightMotor1.ConfigEncoderCodesPerRev(120);
 	m_rightMotor2.SetControlMode(CANTalon::ControlMode::kFollower);
 	m_rightMotor2.ConfigEncoderCodesPerRev(120);
-	m_leftMotor2.Set(LEFT_DRIVE1);
-	m_rightMotor2.Set(RIGHT_DRIVE1);
+	m_leftMotor2.Set(MOTOR_LEFT_DRIVE1);
+	m_rightMotor2.Set(MOTOR_RIGHT_DRIVE1);
 	direction = 1;
+	highGear = true;
 }
 
 TankDrive::~TankDrive() {
  	 }
 
+void TankDrive::TeleopInit() {
+
+}
+
 void TankDrive::TeleopPeriodic() {
-	if (m_rightStick.GetRawButton(REVERSE_DRIVE) && direction == 1) {
+	if (direction == 1 && m_rightStick.GetRawButton(BUTTON_R_REVERSE_DRIVE)) {
 		direction = -1;
-	} else if (!m_rightStick.GetRawButton(REVERSE_DRIVE) && direction == -1) {
+	} else if (direction == -1 && !m_rightStick.GetRawButton(BUTTON_R_REVERSE_DRIVE)) {
 		direction = 1;
 	}
 
-	this->Drive(-this->m_leftStick.GetY() * direction, this->m_rightStick.GetY() * direction);
+	this->Drive(this->m_leftStick.GetY() * direction, this->m_rightStick.GetY() * direction);
 	float WheelSpeed = ((m_rightMotor1.GetSpeed()+m_leftMotor1.GetSpeed())/60)/2;
 	//^^above^^Gives us the average rotations per second of the two encoders
 
@@ -59,24 +64,27 @@ void TankDrive::TeleopPeriodic() {
 		TankDrive::HighGear();
 	}
 
-	if (m_leftStick.GetRawButton(SHIFT_LOW)){
+	if (this->highGear && m_leftStick.GetRawButton(BUTTON_L_SHIFT_LOW)){
 		TankDrive::LowGear();
 	}
-	else if (m_leftStick.GetRawButton(SHIFT_HIGH)){
+	else if (!this->highGear && m_leftStick.GetRawButton(BUTTON_L_SHIFT_HIGH)){
 		TankDrive::HighGear();
 	}
 }
 
 void TankDrive::Drive(const float leftVal, const float rightVal) {
-	m_leftMotor1.SetSetpoint(leftVal);
+	//left motor speed is inverted because the motors are physically opposite the right motors
+	m_leftMotor1.SetSetpoint(-leftVal);
 	m_rightMotor1.SetSetpoint(rightVal);
 }
 
 void TankDrive::LowGear() {
 	m_gearShift.Set(false);
+	this->highGear = false;
 
 }
 
 void TankDrive::HighGear() {
 	m_gearShift.Set(true);
+	this->highGear = true;
 }

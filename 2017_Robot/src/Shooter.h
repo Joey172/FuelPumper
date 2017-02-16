@@ -14,27 +14,42 @@
 
 
 class Shooter {
-	Joystick& m_joystick;
 	CANTalon& m_shootWheel1;
 	CANTalon& m_shootWheel2;
 	CANTalon& m_indexMotor;
-	Joystick& m_joystick2;
-	DigitalOutput& m_aimLight;
+	frc::DigitalOutput& m_aimLight;
+
+	int m_shootButton;
+	frc::Joystick& m_joystickForShootButton;
+	int m_reverseIndexButton;
+	frc::Joystick& m_joystickForReverseIndexButton;
+	int m_aimingLightButton;
+	frc::Joystick& m_joystickForAimingLightButton;
+	PowerDistributionPanel m_pdp;
+
+  float m_shooterSpeed;
+
 public:
 	Shooter(
-		frc::Joystick &
+		CANTalon &
 		, CANTalon &
 		, CANTalon &
-		, CANTalon &
-		, frc::Joystick &
 		, DigitalOutput &
+		, int
+		, Joystick&
+		, int
+		, Joystick&
+		, int
+		, Joystick&
+		, float
 	);
 	virtual ~Shooter();
+	void TeleopInit();
 	void TeleopPeriodic();
 
 	//Want to allow it to activate shooter motors let
 	//then get up to speed then activate index motor
-	void Shoot();
+	void Shoot(float);
     void Stop();
     void ReverseIndex();
     void Init();

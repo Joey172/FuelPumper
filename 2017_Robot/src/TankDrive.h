@@ -22,6 +22,7 @@ class TankDrive {
 	CANTalon& m_rightMotor2;
 private:
 	int direction;
+	bool highGear;
 public:
 	TankDrive(
 		frc::Joystick &
@@ -33,6 +34,7 @@ public:
 		,CANTalon &
 	);
 	virtual ~TankDrive();
+	void TeleopInit();
 	void TeleopPeriodic();
 	void Drive(const float leftVal, const float rightVal);
 	void LowGear();
