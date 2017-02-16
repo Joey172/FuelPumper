@@ -8,24 +8,12 @@
 
 #ifndef SRC_AUTONOMOUS_H_
 #define SRC_AUTONOMOUS_H_
+#include "Vision.h"
 
-#include "BoilerVision.h"
-using namespace cs;
-using namespace grip;
 class Autonomous {
-	CameraServer *m_cameraServer = nullptr;
-	cs::CvSource m_outputStream;
-	cs::UsbCamera camera;
-	grip::BoilerVision m_boilerVision;
-
+	Vision m_vision;
 public:
-	Autonomous(
-		CameraServer *,
-		CvSource &m_outputStream,
-		UsbCamera &camera
-//		,
-//		BoilerVision &m_boilerVision
-	);
+	Autonomous();
 	virtual ~Autonomous();
 
 	void AutonomousPeriodic();
