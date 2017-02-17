@@ -20,6 +20,7 @@ class TankDrive {
 	CANTalon& m_leftMotor2;
 	CANTalon& m_rightMotor1;
 	CANTalon& m_rightMotor2;
+	frc::ADXRS450_Gyro m_gyro;
 private:
 	int direction;
 	bool highGear;
