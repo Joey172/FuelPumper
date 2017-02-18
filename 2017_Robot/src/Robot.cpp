@@ -147,7 +147,7 @@ m_shooter(
 			Preferences::GetInstance()->PutFloat("Exposure", 1);
 		}
 		cameraServer = CameraServer::GetInstance();
-		m_autonomous = new Autonomous(cameraServer, m_outputStream, camera);
+		m_autonomous = new Autonomous(cameraServer, m_outputStream, camera, m_tank);
 
 		m_shooterSpeed = frc::Preferences::GetInstance()->GetFloat("ShooterSpeed",0);
 
@@ -176,10 +176,12 @@ m_shooter(
 		m_tank.TeleopInit();
 		m_climber.TeleopInit();
 		m_vision.TeleopInit();
+		m_tank.SetMode(DriveMode::VBUS);
 	}
 
 	void TeleopPeriodic() override {
 		//m_gearManipulator.Release(m_leftStick.GetRawButton(LStickMap::GEAR_RELEASE));
+
 		m_gearManipulator.TeleopPeriodic();
 		m_tank.TeleopPeriodic();
 		m_pickup.TeleopPeriodic();
