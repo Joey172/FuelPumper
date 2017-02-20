@@ -8,51 +8,61 @@
 #include <GCodeInterpretor.h>
 #include <cmath>
 using namespace std;
-GCodeInterpretor::GCodeInterpretor() {
-	// TODO Auto-generated constructor stub
 
+GCodeInterpretor::GCodeInterpretor() {
+	// TODO: Find out correct filepath.
+	m_file.open("lvuser/gcode.txt");
 }
 
 GCodeInterpretor::~GCodeInterpretor() {
-	// TODO Auto-generated destructor stub
 }
-void GetParams(string gcodeStr, float *params, string paramStr) {
+void GCodeInterpretor::GetParams(const std::string &gcodeStr, const std::string paramStr) {
     for(unsigned i = 0; i < paramStr.size(); i++) {
         auto pos = gcodeStr.find(paramStr[i], 0);
         if(pos == string::npos) {
-        	params[i] = 0;
+        	m_params[i] = 0;
         	continue;
         }
-        params[i] = std::strtof(gcodeStr.data() + (pos + 1), nullptr);
+        m_params[i] = std::strtof(gcodeStr.data() + (pos + 1), nullptr);
     }
 }
-void GCodeInterpretor::Interpret(std::string str) {
-    string gcode_str =  "G02 X27 Y47 I120 J4967 E32 F20";
-    string paramStr = "";
-  	auto pos = gcode_str.find('G', 0);
-  	pos+=1;
-	float params[5] = {0};
 
-	int code;
+void GCodeInterpretor::Interpret() {
+	string gcode_str;
+    string paramStr;
+    int code;
+    char commandGroup;
+	//reads gcode file line by line and calls appropriate function.
+	while(!m_file.eof()) {
+		//TODO: Find out if code needs to be modified to be able to execute multiple commands on one line.
+		//TODO: Find out if M-Code functionality should be added.
+		getline(m_file, gcode_str);
+		auto pos = gcode_str.find('G', 0);
 
-	code = atoi(gcode_str.data() + pos);
-    printf("code: %i\n", code);
-	switch(code) {
-	case 1: // G01 Xnn Ynn Znn Fnn
-		paramStr = "XYF";
-        GetParams(gcode_str, params, paramStr);
-        for(unsigned i = 0; i < paramStr.size();i++ ){
-           	printf("param %c: %f\n", paramStr[i], params[i]);
-        }
-		break;
-	case 2: case 3: // G02 Xnnn Ynnn Innn Jnnn Enn Fnnn
-		// doesn't use E params.
-		paramStr = "XYIJF";
-        GetParams(gcode_str, params, paramStr);
-        for(unsigned i = 0; i < paramStr.size();i++) {
-           	printf("param %c: %f\n", paramStr[i], params[i]);
-        }
-		break;
+		code = atoi(gcode_str.data() + pos + 1);
+		printf("G%i\n", code);
+
+		switch(code) {
+			case 1: // G01: linear movement.
+				paramStr = "XYF";
+				GetParams(gcode_str, paramStr);
+				// TODO Put function call w/ params here.
+				break;
+			case 2: case 3: // G02/G03: clockwise/counter clockwise movement.
+				paramStr = "XYIJF";
+				GetParams(gcode_str, paramStr);
+				// TODO Put function call w/ params here.
+				break;
+			case 4: // G4 Dwell.
+				paramStr = "P";
+				GetParams(gcode_str, paramStr);
+				break;
+			default:
+				printf("GCode %i not yet implemented\n", code);
+		}
+		for(unsigned i = 0; i < paramStr.size();i++) {
+			printf("%c: %f\n", paramStr[i], m_params[i]);
+		}
 	}
 }
 
