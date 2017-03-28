@@ -45,7 +45,12 @@ Shooter::~Shooter() {
 }
 
 void Shooter::TeleopInit() {
-
+	float P = SmartDashboard::GetNumber("Shooter P", 0);
+	float I = SmartDashboard::GetNumber("Shooter I", 0);
+	float D = SmartDashboard::GetNumber("Shooter D", 0);
+	float F = SmartDashboard::GetNumber("Shooter F", 0);
+	m_particleAccelerator->SetPID(P, I, D, F);
+	m_afterBurner->SetPID(P, I, D, F);
 }
 
 void Shooter::TeleopPeriodic() {
@@ -57,12 +62,18 @@ void Shooter::TeleopPeriodic() {
 
 	static bool pickingUp = false;
 	if (joystickButton_shoot->Get() || m_OI->joyStickButton_adjShoot->Get()) {
+		m_particleAccelerator->SetControlMode(CANTalon::ControlMode::kSpeed);
+		m_afterBurner->SetControlMode(CANTalon::ControlMode::kSpeed);
 		Shoot();
 	}
 	else if(m_OI->joystickButton_reverseIndex->Get()) {
 		ReverseIndex();
 	}
-	else Stop();
+	else  {
+		m_particleAccelerator->SetControlMode(CANTalon::ControlMode::kPercentVbus);
+		m_afterBurner->SetControlMode(CANTalon::ControlMode::kPercentVbus);
+		Stop();
+	}
 
 	SmartDashboard::PutBoolean("Shooter_ShootBtn", joystickButton_shoot->Get());
 }
@@ -91,13 +102,13 @@ void Shooter::Shoot() {
 		speedAdjust = 150 * (sliderPos);
 	}
 
-	const float acceleratorSpeed = -3150 + speedAdjust;
-	const float afterBurnerSpeed = -3800 + speedAdjust; //was 3550
+	const float acceleratorSpeed = 3200 - speedAdjust;
+	const float afterBurnerSpeed = 3800 - speedAdjust; //was 3550
 	float paSpeed = m_particleAccelerator->GetSpeed();
 	float abSpeed = m_afterBurner->GetSpeed();
 
-	SmartDashboard::PutNumber("PASpeed", paSpeed);
-	SmartDashboard::PutNumber("ABSpeed", abSpeed);
+	SmartDashboard::PutNumber("PASpeed", fabs(paSpeed));
+	SmartDashboard::PutNumber("ABSpeed", fabs(abSpeed));
 
 	m_particleAccelerator->SetSetpoint(acceleratorSpeed);
 	m_afterBurner->SetSetpoint(afterBurnerSpeed);
@@ -105,9 +116,9 @@ void Shooter::Shoot() {
 	static Timer pickupTimer;
 
 	static bool pickingUp = false;
-	if (fabs(paSpeed-acceleratorSpeed)<=150 && fabs(abSpeed-afterBurnerSpeed) <= 150) {
+	if (fabs(fabs(paSpeed)-fabs(acceleratorSpeed))<=150 && fabs(fabs(abSpeed)-fabs(afterBurnerSpeed)) <= 150) {
 		ballsPS = Preferences::GetInstance()->GetDouble("IndexBallsPS", 4);
-		SetIndexer(12*ballsPS);
+		SetIndexer(ballsPS);
 
 		//Pulse pickup.
 		if(firstTime) {
@@ -128,6 +139,7 @@ void Shooter::Shoot() {
 }
 
 void Shooter::SetIndexer(float speed) {
+	speed *= 15;
 	m_indexMotor->SetSetpoint(speed);
 	m_shooterFeeder->Set(.5);
 }
@@ -145,23 +157,33 @@ void Shooter::Stop() {
 }
 
 void Shooter::Init() {
-	m_particleAccelerator->SetFeedbackDevice(CANTalon::FeedbackDevice::QuadEncoder);
-	m_afterBurner->SetFeedbackDevice(CANTalon::FeedbackDevice::QuadEncoder);
+	m_particleAccelerator->SetFeedbackDevice(CANTalon::FeedbackDevice::CtreMagEncoder_Relative);
+	m_afterBurner->SetFeedbackDevice(CANTalon::FeedbackDevice::CtreMagEncoder_Relative);
 	m_indexMotor->SetFeedbackDevice(CANTalon::CtreMagEncoder_Relative);
 
-	m_particleAccelerator->ConfigEncoderCodesPerRev(20);
-	m_afterBurner->ConfigEncoderCodesPerRev(20);
+	m_particleAccelerator->ConfigEncoderCodesPerRev(4096);
+	m_afterBurner->ConfigEncoderCodesPerRev(4096);
 
+	m_particleAccelerator->SetVelocityMeasurementPeriod(CANTalon::VelocityMeasurementPeriod::Period_1Ms);
+	m_afterBurner->SetVelocityMeasurementPeriod(CANTalon::VelocityMeasurementPeriod::Period_1Ms);
+	m_particleAccelerator->SetVelocityMeasurementWindow(16);
+	m_afterBurner->SetVelocityMeasurementWindow(16);
+
+	m_particleAccelerator->SetSensorDirection(false);
+	m_afterBurner->SetSensorDirection(false);
+	m_particleAccelerator->SetInverted(true);
+	m_afterBurner->SetInverted(true);
 	m_particleAccelerator->SetControlMode(frc::CANSpeedController::kSpeed);
 	m_afterBurner->SetControlMode(frc::CANSpeedController::kSpeed);
+
 	m_indexMotor->SetControlMode(frc::CANSpeedController::kSpeed);
 
-	m_particleAccelerator->SetPID(4,.005,0,1.5);
-	m_afterBurner->SetPID(4,.005,0,1.5);
-	m_particleAccelerator->SetIzone(200);
-	m_afterBurner->SetIzone(200);
+	m_particleAccelerator->SetPID(.5, 0, 0, 0.028);
+	m_afterBurner->SetPID(.5, 0, 0, 0.028);
+	m_particleAccelerator->SetIzone(4000);
+	m_afterBurner->SetIzone(4000);
 
-	m_indexMotor->SetPID(1,0,0, 1);
+	m_indexMotor->SetPID(2,0,0, 1);
 	m_indexMotor->ConfigPeakOutputVoltage(+12,-12);
 	m_indexMotor->SetVoltageRampRate(50);
 	//the encoder is on backwards
@@ -171,6 +193,11 @@ void Shooter::Init() {
 	m_indexMotor->SetSetpoint(0);
 	m_particleAccelerator->SetSetpoint(0);
 	m_afterBurner->SetSetpoint(0);
+
+	SmartDashboard::PutNumber("Shooter P", 0.5);
+	SmartDashboard::PutNumber("Shooter I", 0);
+	SmartDashboard::PutNumber("Shooter D", 0);
+	SmartDashboard::PutNumber("Shooter F", 0.028);
 }
 void Shooter::Spinup() {
 	const float acceleratorSpeed = -3150;
